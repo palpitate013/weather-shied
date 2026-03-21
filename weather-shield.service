@@ -1,0 +1,18 @@
+[Unit]
+Description=Weather Shield - Weather-Based Computer Control
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=your_username
+Group=your_groupname
+WorkingDirectory=/path/to/weather-shied
+ExecStart=/usr/bin/python3 /path/to/weather-shied/weather_monitor.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
