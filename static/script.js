@@ -250,11 +250,133 @@ class WeatherShieldDashboard {
     }
 
     showWeatherError(error) {
-        document.getElementById('temperature').textContent = '!';
-        document.getElementById('weatherDescription').textContent = 'Error';
-        document.getElementById('location').textContent = error;
+        const errorMsg = String(error || 'Error');
+        
+        if (errorMsg.includes('Configuration required')) {
+            document.getElementById('temperature').textContent = '⚙️';
+            document.getElementById('weatherDescription').textContent = 'Configuration Required';
+            document.getElementById('location').textContent = 'Click ⚙️ to configure your settings';
+        } else {
+            document.getElementById('temperature').textContent = '!';
+            document.getElementById('weatherDescription').textContent = 'Error';
+            document.getElementById('location').textContent = errorMsg;
+        }
     }
 }
+
+// Settings Modal Functions
+function openSettings() {
+    const modal = document.getElementById('settingsModal');
+    modal.classList.add('active');
+    loadSettingsForm();
+}
+
+function closeSettings() {
+    const modal = document.getElementById('settingsModal');
+    modal.classList.remove('active');
+    clearSettingsMessage();
+}
+
+function loadSettingsForm() {
+    // Fetch current config and populate form
+    fetch('/api/config')
+        .then(response => response.json())
+        .then(config => {
+            document.getElementById('apiKey').value = config.api_key || '';
+            document.getElementById('latitude').value = config.latitude || '';
+            document.getElementById('longitude').value = config.longitude || '';
+            document.getElementById('units').value = config.units || 'metric';
+            document.getElementById('checkInterval').value = config.check_interval || '300';
+            document.getElementById('forecastMinutes').value = config.forecast_minutes || '30';
+        })
+        .catch(error => {
+            console.error('Error loading settings:', error);
+            showSettingsMessage('Error loading settings', 'error');
+        });
+}
+
+function handleSettingsSubmit(event) {
+    event.preventDefault();
+    
+    const settings = {
+        api_key: document.getElementById('apiKey').value,
+        latitude: parseFloat(document.getElementById('latitude').value),
+        longitude: parseFloat(document.getElementById('longitude').value),
+        units: document.getElementById('units').value,
+        check_interval: parseInt(document.getElementById('checkInterval').value),
+        forecast_minutes: parseInt(document.getElementById('forecastMinutes').value)
+    };
+
+    // Validate required fields
+    if (!settings.api_key || !settings.latitude || !settings.longitude) {
+        showSettingsMessage('Please fill in all required fields', 'error');
+        return;
+    }
+
+    // Validate coordinates
+    if (settings.latitude < -90 || settings.latitude > 90) {
+        showSettingsMessage('Latitude must be between -90 and 90', 'error');
+        return;
+    }
+    if (settings.longitude < -180 || settings.longitude > 180) {
+        showSettingsMessage('Longitude must be between -180 and 180', 'error');
+        return;
+    }
+
+    // Show loading state
+    showSettingsMessage('Saving settings...', 'success');
+    
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSettingsMessage('Settings saved successfully! Dashboard will refresh...', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showSettingsMessage(data.message || 'Error saving settings', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving settings:', error);
+        showSettingsMessage('Error saving settings: ' + error.message, 'error');
+    });
+}
+
+function showSettingsMessage(message, type) {
+    const messageEl = document.getElementById('settingsMessage');
+    messageEl.textContent = message;
+    messageEl.className = 'settings-message ' + type;
+}
+
+function clearSettingsMessage() {
+    const messageEl = document.getElementById('settingsMessage');
+    messageEl.textContent = '';
+    messageEl.className = 'settings-message';
+}
+
+// Close modal when clicking outside of it
+window.addEventListener('click', (event) => {
+    const modal = document.getElementById('settingsModal');
+    if (event.target === modal) {
+        closeSettings();
+    }
+});
+
+// Attach form submission handler
+document.addEventListener('DOMContentLoaded', () => {
+    const settingsForm = document.getElementById('settingsForm');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', handleSettingsSubmit);
+    }
+});
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {

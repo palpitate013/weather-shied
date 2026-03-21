@@ -67,9 +67,14 @@ class WeatherMonitor:
         self.last_action = None
         self.running = True
         self.logger = logging.getLogger('weather-shield.monitor')
+        self.config_path = config_path
 
+        # Check if we have all required config
         if not self.api_key or not self.latitude or not self.longitude:
-            raise ValueError("Missing required config: api_key, latitude, longitude")
+            self.logger.warning("Missing required config: api_key, latitude, longitude - Weather monitoring disabled until configured")
+            self.disabled = True
+        else:
+            self.disabled = False
 
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from JSON file."""
@@ -230,6 +235,27 @@ class WeatherMonitor:
 
     def run(self):
         """Main monitoring loop."""
+        if self.disabled:
+            self.logger.info("Weather monitoring disabled - waiting for configuration...")
+            # Periodically reload config to check if it's been set
+            while self.running:
+                time.sleep(5)
+                try:
+                    self.config = self._load_config(self.config_path)
+                    self.api_key = self.config.get('api_key')
+                    self.latitude = self.config.get('latitude')
+                    self.longitude = self.config.get('longitude')
+                    
+                    if self.api_key and self.latitude and self.longitude:
+                        self.disabled = False
+                        self.logger.info("Configuration loaded! Weather monitoring enabled.")
+                        break
+                except Exception as e:
+                    self.logger.debug(f"Error reloading config: {e}")
+            
+            if self.disabled:
+                return
+        
         self.logger.info("Weather Shield started")
         self.logger.info(f"Location: {self.latitude}, {self.longitude}")
         self.logger.info(f"Check interval: {self.check_interval} seconds")
@@ -280,16 +306,12 @@ class DashboardApp:
         self.logger = logging.getLogger('weather-shield.dashboard')
         self.running = True
 
-        # Load configuration
-        with open(config_path, 'r') as f:
-            self.config = json.load(f)
-
         # Setup routes
         self._setup_routes()
 
     def _setup_routes(self):
         """Setup Flask routes."""
-        from flask import send_from_directory, render_template
+        from flask import send_from_directory, render_template, request
         
         @self.app.route('/')
         def index():
@@ -309,23 +331,122 @@ class DashboardApp:
 
         @self.app.route('/api/config')
         def get_config():
+            with open(self.config_file, 'r') as f:
+                config = json.load(f)
             return self.jsonify({
-                'location': f"{self.config.get('latitude')}, {self.config.get('longitude')}",
-                'units': self.config.get('units', 'metric'),
-                'check_interval': self.config.get('check_interval', 300),
-                'forecast_minutes': self.config.get('forecast_minutes', 30)
+                'api_key': config.get('api_key', ''),
+                'latitude': config.get('latitude', ''),
+                'longitude': config.get('longitude', ''),
+                'location': f"{config.get('latitude', '')}, {config.get('longitude', '')}",
+                'units': config.get('units', 'metric'),
+                'check_interval': config.get('check_interval', 300),
+                'forecast_minutes': config.get('forecast_minutes', 30)
             })
+
+        @self.app.route('/api/settings', methods=['POST'])
+        def save_settings():
+            """Save settings to config.json and validate API key."""
+            try:
+                data = request.get_json()
+                
+                # Validate required fields
+                required_fields = ['api_key', 'latitude', 'longitude', 'units', 'check_interval', 'forecast_minutes']
+                if not all(field in data for field in required_fields):
+                    return self.jsonify({
+                        'success': False,
+                        'message': 'Missing required fields'
+                    }), 400
+                
+                # Validate coordinates
+                try:
+                    lat = float(data['latitude'])
+                    lon = float(data['longitude'])
+                    if lat < -90 or lat > 90:
+                        return self.jsonify({
+                            'success': False,
+                            'message': 'Latitude must be between -90 and 90'
+                        }), 400
+                    if lon < -180 or lon > 180:
+                        return self.jsonify({
+                            'success': False,
+                            'message': 'Longitude must be between -180 and 180'
+                        }), 400
+                except (ValueError, TypeError):
+                    return self.jsonify({
+                        'success': False,
+                        'message': 'Invalid latitude or longitude'
+                    }), 400
+                
+                # Validate API key by making a test call
+                try:
+                    import requests
+                    url = "https://api.openweathermap.org/data/2.5/weather"
+                    params = {
+                        'lat': data['latitude'],
+                        'lon': data['longitude'],
+                        'appid': data['api_key'],
+                        'units': data['units']
+                    }
+                    response = requests.get(url, params=params, timeout=5)
+                    if response.status_code != 200:
+                        return self.jsonify({
+                            'success': False,
+                            'message': 'Invalid API key or coordinates'
+                        }), 400
+                except Exception as e:
+                    self.logger.error(f"Error validating API key: {e}")
+                    return self.jsonify({
+                        'success': False,
+                        'message': f'Error validating API key: {str(e)}'
+                    }), 400
+                
+                # Save configuration
+                config = {
+                    'api_key': data['api_key'],
+                    'latitude': float(data['latitude']),
+                    'longitude': float(data['longitude']),
+                    'units': data['units'],
+                    'check_interval': int(data['check_interval']),
+                    'forecast_minutes': int(data['forecast_minutes'])
+                }
+                
+                with open(self.config_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+                
+                self.logger.info(f"Settings saved: {config}")
+                
+                return self.jsonify({
+                    'success': True,
+                    'message': 'Settings saved successfully'
+                }), 200
+                
+            except Exception as e:
+                self.logger.error(f"Error saving settings: {e}")
+                return self.jsonify({
+                    'success': False,
+                    'message': f'Error saving settings: {str(e)}'
+                }), 500
 
     def _get_weather_data(self) -> Dict:
         """Fetch current weather data."""
         try:
+            # Load config fresh to get latest settings
+            with open(self.config_file, 'r') as f:
+                config = json.load(f)
+            
+            if not config.get('api_key') or not config.get('latitude') or not config.get('longitude'):
+                return {
+                    'error': 'Configuration required',
+                    'message': 'Please configure API key and location in settings'
+                }
+            
             import requests
             url = "https://api.openweathermap.org/data/2.5/weather"
             params = {
-                'lat': self.config.get('latitude'),
-                'lon': self.config.get('longitude'),
-                'appid': self.config.get('api_key'),
-                'units': self.config.get('units', 'metric')
+                'lat': config.get('latitude'),
+                'lon': config.get('longitude'),
+                'appid': config.get('api_key'),
+                'units': config.get('units', 'metric')
             }
 
             response = requests.get(url, params=params, timeout=10)
@@ -351,13 +472,23 @@ class DashboardApp:
     def _get_forecast_data(self) -> Dict:
         """Fetch forecast data."""
         try:
+            # Load config fresh to get latest settings
+            with open(self.config_file, 'r') as f:
+                config = json.load(f)
+            
+            if not config.get('api_key') or not config.get('latitude') or not config.get('longitude'):
+                return {
+                    'error': 'Configuration required',
+                    'forecasts': []
+                }
+            
             import requests
             url = "https://api.openweathermap.org/data/2.5/forecast"
             params = {
-                'lat': self.config.get('latitude'),
-                'lon': self.config.get('longitude'),
-                'appid': self.config.get('api_key'),
-                'units': self.config.get('units', 'metric')
+                'lat': config.get('latitude'),
+                'lon': config.get('longitude'),
+                'appid': config.get('api_key'),
+                'units': config.get('units', 'metric')
             }
 
             response = requests.get(url, params=params, timeout=10)
@@ -377,7 +508,7 @@ class DashboardApp:
             return {'forecasts': forecasts}
         except Exception as e:
             self.logger.error(f"Error fetching forecast: {e}")
-            return {'error': str(e)}
+            return {'error': str(e), 'forecasts': []}
 
     def _get_device_status(self) -> Dict:
         """Get device monitoring status."""

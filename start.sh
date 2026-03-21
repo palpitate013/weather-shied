@@ -35,11 +35,21 @@ if [ -f "$PID_FILE" ]; then
     fi
 fi
 
-# Check if config.json exists
+# Check if config.json exists, create default if not
 if [ ! -f "$PROJECT_DIR/config.json" ]; then
-    echo -e "${RED}❌ Error: config.json not found${NC}"
-    echo "Please copy config.example.json to config.json and configure it"
-    exit 1
+    echo -e "${YELLOW}ℹ️  config.json not found, creating default...${NC}"
+    cat > "$PROJECT_DIR/config.json" << 'EOF'
+{
+  "api_key": "",
+  "latitude": 0,
+  "longitude": 0,
+  "units": "metric",
+  "check_interval": 300,
+  "forecast_minutes": 30
+}
+EOF
+    echo -e "${GREEN}✅ Default config.json created${NC}"
+    echo -e "${YELLOW}⚠️  You will need to configure the API key using the web dashboard settings${NC}"
 fi
 
 # Check if running in nix-shell or has Python available

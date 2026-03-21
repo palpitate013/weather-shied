@@ -14,8 +14,11 @@
                 <h1 class="title">🌦️ Weather Shield</h1>
                 <p class="subtitle">Real-time Weather Monitoring Dashboard</p>
             </div>
-            <div class="last-update">
-                Last update: <span id="updateTime">--:--:--</span>
+            <div class="header-right">
+                <div class="last-update">
+                    Last update: <span id="updateTime">--:--:--</span>
+                </div>
+                <button class="settings-btn" onclick="openSettings()" title="Settings">⚙️</button>
             </div>
         </header>
 
@@ -110,6 +113,60 @@
         <footer class="footer">
             <p>Weather Shield v1.0.0 | Real-time weather monitoring and computer control</p>
         </footer>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-btn" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="settingsForm">
+                    <div class="form-group">
+                        <label for="apiKey">OpenWeather API Key</label>
+                        <input type="password" id="apiKey" name="apiKey" placeholder="Enter your API key" required>
+                        <small>Get your free API key at <a href="https://openweathermap.org/api" target="_blank">openweathermap.org</a></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="latitude">Latitude</label>
+                        <input type="number" id="latitude" name="latitude" step="0.0001" placeholder="e.g., 40.7128" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="longitude">Longitude</label>
+                        <input type="number" id="longitude" name="longitude" step="0.0001" placeholder="e.g., -74.0060" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="units">Temperature Units</label>
+                        <select id="units" name="units">
+                            <option value="metric">Celsius (metric)</option>
+                            <option value="imperial">Fahrenheit (imperial)</option>
+                            <option value="kelvin">Kelvin</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="checkInterval">Check Interval (seconds)</label>
+                        <input type="number" id="checkInterval" name="checkInterval" min="60" step="60" placeholder="300" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="forecastMinutes">Forecast Window (minutes)</label>
+                        <input type="number" id="forecastMinutes" name="forecastMinutes" min="15" step="15" placeholder="30" required>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Save Settings</button>
+                        <button type="button" class="btn-secondary" onclick="closeSettings()">Cancel</button>
+                    </div>
+                </form>
+                <div id="settingsMessage" class="settings-message"></div>
+            </div>
+        </div>
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
