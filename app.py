@@ -8,6 +8,8 @@ from flask import Flask, render_template, jsonify
 from flask_cors import CORS
 import json
 import os
+import socket
+import subprocess
 from datetime import datetime
 import requests
 from pathlib import Path
@@ -164,6 +166,148 @@ class WeatherShieldDashboard:
                 'last_check': 'never',
                 'is_bad_weather': False
             }
+    
+    def get_system_info(self):
+        """Get system information for docker control."""
+        try:
+            hostname = socket.gethostname()
+            
+            # Get IP address
+            ip_address = socket.gethostbyname(hostname)
+            
+            # Get MAC address
+            mac_address = self._get_mac_address()
+            
+            # Get architecture
+            architecture = self._get_architecture()
+            
+            # Get hostname for easy identification
+            fqdn = socket.getfqdn()
+            
+            return {
+                'hostname': hostname,
+                'fqdn': fqdn,
+                'ip_address': ip_address,
+                'mac_address': mac_address,
+                'architecture': architecture,
+                'docker_host': f"ssh://root@{ip_address}"
+            }
+        except Exception as e:
+            return {
+                'error': str(e),
+                'hostname': 'unknown',
+                'ip_address': 'unknown',
+                'mac_address': 'unknown',
+                'architecture': 'unknown'
+            }
+    
+    def get_wake_on_lan_status(self):
+        """Check if Wake on LAN (WoL) is enabled."""
+        try:
+            # For Linux systems, check with ethtool
+            result = subprocess.run(
+                ['ethtool', 'eth0'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                output = result.stdout
+                if 'Wake-on:' in output:
+                    # Extract WoL status
+                    for line in output.split('\n'):
+                        if 'Wake-on:' in line:
+                            status = line.split('Wake-on:')[1].strip().split()[0]
+                            # 'g' or 'd' typically indicate WoL is enabled
+                            is_enabled = status.lower() not in ['off', 'disabled']
+                            return {
+                                'enabled': is_enabled,
+                                'status': status,
+                                'device': 'eth0',
+                                'supported': True
+                            }
+            
+            # Try other common interface names
+            for iface in ['eth0', 'enp0s3', 'enp0s31f6', 'eno1', 'wlan0']:
+                try:
+                    result = subprocess.run(
+                        ['ethtool', iface],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0 and 'Wake-on:' in result.stdout:
+                        for line in result.stdout.split('\n'):
+                            if 'Wake-on:' in line:
+                                status = line.split('Wake-on:')[1].strip().split()[0]
+                                is_enabled = status.lower() not in ['off', 'disabled']
+                                return {
+                                    'enabled': is_enabled,
+                                    'status': status,
+                                    'device': iface,
+                                    'supported': True
+                                }
+                except:
+                    continue
+            
+            return {
+                'enabled': False,
+                'status': 'unknown',
+                'supported': False,
+                'message': 'WoL status could not be determined'
+            }
+        
+        except FileNotFoundError:
+            return {
+                'enabled': False,
+                'status': 'unknown',
+                'supported': False,
+                'message': 'ethtool not found. Install it with: sudo apt install ethtool'
+            }
+        except Exception as e:
+            return {
+                'enabled': False,
+                'status': 'error',
+                'supported': False,
+                'error': str(e)
+            }
+    
+    def _get_mac_address(self):
+        """Get MAC address of the primary network interface."""
+        try:
+            result = subprocess.run(
+                ['ip', 'link', 'show'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                lines = result.stdout.split('\n')
+                for i, line in enumerate(lines):
+                    if 'link/ether' in line:
+                        mac = line.split('link/ether')[1].strip().split()[0]
+                        return mac
+            
+            return 'unknown'
+        except:
+            return 'unknown'
+    
+    def _get_architecture(self):
+        """Get system architecture."""
+        try:
+            result = subprocess.run(
+                ['uname', '-m'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except:
+            pass
+        return 'unknown'
 
 dashboard = WeatherShieldDashboard()
 
@@ -195,6 +339,30 @@ def api_config():
         'check_interval': dashboard.config.get('check_interval', 300),
         'forecast_minutes': dashboard.config.get('forecast_minutes', 30),
         'units': dashboard.config.get('units', 'metric')
+    })
+
+@app.route('/api/system-info')
+def api_system_info():
+    """Get system information for docker control."""
+    return jsonify(dashboard.get_system_info())
+
+@app.route('/api/wol-status')
+def api_wol_status():
+    """Get Wake on LAN status."""
+    return jsonify(dashboard.get_wake_on_lan_status())
+
+@app.route('/api/control-info')
+def api_control_info():
+    """Get all information needed to control this computer remotely."""
+    return jsonify({
+        'system': dashboard.get_system_info(),
+        'wol': dashboard.get_wake_on_lan_status(),
+        'docker_available': os.path.exists('/var/run/docker.sock') or os.path.exists('/run/docker.sock'),
+        'service': {
+            'name': 'weather-shield',
+            'port': 5000,
+            'protocol': 'http'
+        }
     })
 
 if __name__ == '__main__':

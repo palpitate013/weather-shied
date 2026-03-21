@@ -56,6 +56,7 @@ class WeatherShieldDashboard {
         this.updateForecast();
         this.updateDeviceStatus();
         this.updateConfig();
+        this.updateSystemInfo();
         this.updateTime();
         loadComputers();
     }
@@ -123,6 +124,17 @@ class WeatherShieldDashboard {
             this.renderConfig(data);
         } catch (error) {
             console.error('Failed to fetch config:', error);
+        }
+    }
+
+    async updateSystemInfo() {
+        try {
+            const response = await fetch('/api/control-info');
+            const data = await response.json();
+
+            this.renderSystemInfo(data);
+        } catch (error) {
+            console.error('Failed to fetch system info:', error);
         }
     }
 
@@ -248,6 +260,52 @@ class WeatherShieldDashboard {
                 <span class="config-value">${config.units === 'metric' ? '°C' : '°F'}</span>
             </div>
         `;
+    }
+
+    renderSystemInfo(controlInfo) {
+        // System Information
+        const system = controlInfo.system || {};
+        document.getElementById('sysHostname').textContent = system.hostname || '--';
+        document.getElementById('sysFqdn').textContent = system.fqdn || '--';
+        document.getElementById('sysIp').textContent = system.ip_address || '--';
+        document.getElementById('sysMac').textContent = system.mac_address || '--';
+        document.getElementById('sysArch').textContent = system.architecture || '--';
+
+        // Docker Information
+        document.getElementById('sysDocker').textContent = system.docker_host || '--';
+        const dockerAvail = controlInfo.docker_available ? '🟢 Available' : '🔴 Not Available';
+        document.getElementById('sysDockerAvail').textContent = dockerAvail;
+        if (controlInfo.docker_available) {
+            document.getElementById('sysDockerAvail').classList.add('success');
+            document.getElementById('sysDockerAvail').classList.remove('danger');
+        } else {
+            document.getElementById('sysDockerAvail').classList.add('danger');
+            document.getElementById('sysDockerAvail').classList.remove('success');
+        }
+
+        // WoL Information
+        const wol = controlInfo.wol || {};
+        if (wol.supported === false) {
+            document.getElementById('wolStatus').textContent = '⚠️ Not Supported/Unavailable';
+            document.getElementById('wolDevice').textContent = 'N/A';
+            document.getElementById('wolSupported').textContent = 'No';
+            const wolInfo = document.getElementById('wolInfo');
+            wolInfo.className = 'wol-info warning';
+            wolInfo.textContent = wol.message || 'WoL could not be detected on this system';
+        } else if (wol.enabled) {
+            document.getElementById('wolStatus').textContent = '🟢 Enabled';
+            document.getElementById('wolDevice').textContent = wol.device || '--';
+            document.getElementById('wolSupported').textContent = 'Yes';
+            document.getElementById('wolInfo').className = 'wol-info success';
+            document.getElementById('wolInfo').textContent = `Wake on LAN is enabled on ${wol.device}. MAC address: ${system.mac_address}`;
+        } else {
+            document.getElementById('wolStatus').textContent = '🔴 Disabled';
+            document.getElementById('wolDevice').textContent = wol.device || '--';
+            document.getElementById('wolSupported').textContent = 'Yes';
+            const wolInfo = document.getElementById('wolInfo');
+            wolInfo.className = 'wol-info warning';
+            wolInfo.textContent = `Wake on LAN is supported but currently disabled. To enable: sudo ethtool -s ${wol.device || 'eth0'} wol g`;
+        }
     }
 
     showWeatherError(error) {
@@ -662,6 +720,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (computerForm) {
         computerForm.addEventListener('submit', handleComputerFormSubmit);
     }
+
+    // Add click handlers to copyable elements
+    document.querySelectorAll('.copyable').forEach(element => {
+        element.addEventListener('click', function() {
+            const text = this.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = this.textContent;
+                this.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        });
+    });
 });
 
 // Initialize dashboard when DOM is loaded

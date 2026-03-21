@@ -117,6 +117,71 @@
                         <div class="config-loading">Loading configuration...</div>
                     </div>
                 </section>
+
+                <!-- System Control Information Card -->
+                <section class="card system-card">
+                    <h2 class="card-title">🖥️ System Control Information</h2>
+                    <div class="system-content">
+                        <div class="system-section">
+                            <h3>System Information</h3>
+                            <div class="system-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Hostname</span>
+                                    <span class="detail-value copyable" id="sysHostname" title="Click to copy">--</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">FQDN</span>
+                                    <span class="detail-value copyable" id="sysFqdn" title="Click to copy">--</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">IP Address</span>
+                                    <span class="detail-value copyable" id="sysIp" title="Click to copy">--</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">MAC Address</span>
+                                    <span class="detail-value copyable" id="sysMac" title="Click to copy">--</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Architecture</span>
+                                    <span class="detail-value" id="sysArch">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="system-section">
+                            <h3>Remote Control</h3>
+                            <div class="system-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Docker Host</span>
+                                    <span class="detail-value copyable mono" id="sysDocker" title="Click to copy">--</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Docker Available</span>
+                                    <span class="detail-value" id="sysDockerAvail">🔴 Not Available</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="system-section">
+                            <h3>Wake on LAN (WoL)</h3>
+                            <div class="system-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Status</span>
+                                    <span class="detail-value" id="wolStatus">Checking...</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Device</span>
+                                    <span class="detail-value" id="wolDevice">--</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Supported</span>
+                                    <span class="detail-value" id="wolSupported">--</span>
+                                </div>
+                            </div>
+                            <div class="wol-info" id="wolInfo"></div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
 

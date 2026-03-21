@@ -844,6 +844,119 @@ html, body {
     }
 }
 
+/* System Card */
+.system-card {
+    grid-column: span 1;
+}
+
+.system-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.system-section {
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    border-left: 3px solid var(--aqua);
+}
+
+.system-section h3 {
+    color: var(--aqua);
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.system-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-row .detail-label {
+    color: var(--fg3);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+}
+
+.detail-row .detail-value {
+    color: var(--fg0);
+    font-weight: 600;
+    word-break: break-all;
+    max-width: 50%;
+    text-align: right;
+}
+
+.detail-value.copyable {
+    cursor: pointer;
+    padding: 0.4rem 0.8rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.detail-value.copyable:hover {
+    background: rgba(143, 192, 140, 0.2);
+    color: var(--green);
+}
+
+.detail-value.copyable.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+}
+
+.detail-value.success {
+    color: var(--green);
+}
+
+.detail-value.danger {
+    color: var(--red);
+}
+
+.detail-value.warning {
+    color: var(--yellow);
+}
+
+.wol-info {
+    margin-top: 0.8rem;
+    padding: 0.8rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    border-left: 3px solid transparent;
+}
+
+.wol-info.success {
+    background: rgba(184, 187, 38, 0.1);
+    border-left-color: var(--green);
+    color: var(--green);
+}
+
+.wol-info.warning {
+    background: rgba(250, 189, 47, 0.1);
+    border-left-color: var(--yellow);
+    color: var(--yellow);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .header {
