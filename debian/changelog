@@ -1,0 +1,10 @@
+weather-shield (1.0.0-1) focal; urgency=medium
+
+  * Initial release
+  * Real-time weather monitoring dashboard
+  * Multi-computer support with individual status tracking
+  * Web-based control interface
+  * ntfy.sh notifications for alerts
+  * Manual power control for computers
+
+ -- Weather Shield Team <dev@weather-shield.io>  Fri, 21 Mar 2026 14:00:00 +0000

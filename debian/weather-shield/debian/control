@@ -1,0 +1,27 @@
+Source: weather-shield
+Section: utils
+Priority: optional
+Maintainer: Weather Shield Contributors <dev@weather-shield.io>
+Build-Depends: debhelper-compat (= 13), python3, python3-setuptools
+Standards-Version: 4.6.1
+Homepage: https://github.com/palpitate013/weather-shield
+Vcs-Browser: https://github.com/palpitate013/weather-shield
+Vcs-Git: https://github.com/palpitate013/weather-shield.git
+
+Package: weather-shield
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}, python3 (>= 3.8), sudo
+Recommends: systemd, python3-pip
+Description: Real-time weather monitoring and computer control system
+ Weather Shield is a Python application that monitors weather conditions
+ and automatically controls computer power states based on weather patterns.
+ Features include:
+ .
+  * Real-time weather monitoring via OpenWeather API
+  * Web-based dashboard for system status and control
+  * Multi-computer support with individual tracking
+  * Automatic shutdown on bad weather (thunderstorms, heavy rain, snow, etc.)
+  * Automatic boot when weather improves
+  * Manual power control independent of weather
+  * ntfy.sh notifications for alerts and status changes
+  * REST API for programmatic access

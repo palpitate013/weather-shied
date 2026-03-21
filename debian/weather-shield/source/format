@@ -1,0 +1,11 @@
+Format: 1.0
+Source: weather-shield
+Binary: weather-shield
+Architecture: any
+Version: 1.0.0
+Maintainer: Weather Shield Contributors <dev@weather-shield.io>
+Homepage: https://github.com/palpitate013/weather-shield
+Vcs-Git: https://github.com/palpitate013/weather-shield.git
+Vcs-Browser: https://github.com/palpitate013/weather-shield
+Standards-Version: 4.6.1
+Build-Depends: debhelper (>= 11), python3-all, python3-setuptools
