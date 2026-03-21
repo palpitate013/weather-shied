@@ -824,6 +824,17 @@ html, body {
     border-color: var(--red);
 }
 
+.btn-icon.power {
+    background: var(--bg3);
+    border: 2px solid var(--fg3);
+}
+
+.btn-icon.power:hover {
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--bg0);
+}
+
 @keyframes pulse {
     0%, 100% {
         opacity: 1;

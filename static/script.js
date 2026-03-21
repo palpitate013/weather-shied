@@ -473,6 +473,8 @@ function renderComputers(computers) {
                             </div>
                         </div>
                         <div class="computer-actions">
+                            <button class="btn-icon power" onclick="turnComputerOn('${comp.id}')" title="Power On">⏻️</button>
+                            <button class="btn-icon power" onclick="turnComputerOff('${comp.id}')" title="Power Off">⏼</button>
                             <button class="btn-icon" onclick="editComputer('${comp.id}', '${escapeHtml(comp.name)}', ${comp.enabled})" title="Edit">✏️</button>
                             <button class="btn-icon danger" onclick="deleteComputer('${comp.id}', '${escapeHtml(comp.name)}')" title="Delete">🗑️</button>
                         </div>
@@ -499,6 +501,8 @@ function renderComputers(computers) {
                             </div>
                         </div>
                         <div class="computer-actions">
+                            <button class="btn-icon power" onclick="turnComputerOn('${comp.id}')" title="Power On">⏻️</button>
+                            <button class="btn-icon power" onclick="turnComputerOff('${comp.id}')" title="Power Off">⏼</button>
                             <button class="btn-icon" onclick="editComputer('${comp.id}', '${escapeHtml(comp.name)}', ${comp.enabled})" title="Edit">✏️</button>
                             <button class="btn-icon danger" onclick="deleteComputer('${comp.id}', '${escapeHtml(comp.name)}')" title="Delete">🗑️</button>
                         </div>
@@ -561,6 +565,50 @@ function deleteComputer(computerId, computerName) {
     .catch(error => {
         console.error('Error deleting computer:', error);
         alert('Error deleting computer');
+    });
+}
+
+function turnComputerOn(computerId) {
+    fetch(`/api/computers/${computerId}/power`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'on' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadComputers();
+        } else {
+            alert('Error turning on computer: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error turning on computer:', error);
+        alert('Error turning on computer');
+    });
+}
+
+function turnComputerOff(computerId) {
+    fetch(`/api/computers/${computerId}/power`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'off' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadComputers();
+        } else {
+            alert('Error turning off computer: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error turning off computer:', error);
+        alert('Error turning off computer');
     });
 }
 

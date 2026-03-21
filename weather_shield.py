@@ -628,6 +628,53 @@ class DashboardApp:
                     'success': False,
                     'message': f'Error deleting computer: {str(e)}'
                 }), 500
+
+        @self.app.route('/api/computers/<computer_id>/power', methods=['POST'])
+        def toggle_computer_power(computer_id):
+            """Manually toggle computer power state."""
+            try:
+                data = request.get_json()
+                action = data.get('action')  # 'on' or 'off'
+                
+                if action not in ('on', 'off'):
+                    return self.jsonify({
+                        'success': False,
+                        'message': 'Invalid action. Must be "on" or "off"'
+                    }), 400
+                
+                # Update monitor's computer state
+                if hasattr(self, 'monitor_ref') and self.monitor_ref:
+                    if computer_id in self.monitor_ref.computers:
+                        comp = self.monitor_ref.computers[computer_id]
+                        comp['is_on'] = (action == 'on')
+                        comp['last_action'] = action
+                        comp['action_time'] = datetime.now().isoformat()
+                        
+                        self.logger.info(f"Manual power control: {comp['name']} - turning {action}")
+                        
+                        return self.jsonify({
+                            'success': True,
+                            'message': f'Computer powered {action} successfully',
+                            'computer': comp
+                        }), 200
+                    else:
+                        return self.jsonify({
+                            'success': False,
+                            'message': 'Computer not found'
+                        }), 404
+                else:
+                    return self.jsonify({
+                        'success': False,
+                        'message': 'Monitor not available'
+                    }), 500
+            except Exception as e:
+                self.logger.error(f"Error toggling computer power: {e}")
+                return self.jsonify({
+                    'success': False,
+                    'message': f'Error toggling power: {str(e)}'
+                }), 500
+
+    def _get_weather_data(self) -> Dict:
         """Fetch current weather data."""
         try:
             # Load config fresh to get latest settings
