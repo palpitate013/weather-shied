@@ -13,6 +13,7 @@ import logging
 import threading
 import json
 import signal
+import requests as req_module
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from pathlib import Path
@@ -94,6 +95,29 @@ class WeatherMonitor:
                 'action_time': None
             }
             self.logger.info(f"Initialized computer: {self.computers[comp_id]['name']} ({comp_id})")
+
+    def _send_ntfy_notification(self, title: str, message: str, priority: str = "default"):
+        """Send notification via ntfy.sh service."""
+        try:
+            ntfy_topic = self.config.get('ntfy_topic')
+            if not ntfy_topic:
+                return  # ntfy not configured, skip
+            
+            headers = {
+                'Title': title,
+                'Priority': priority,
+                'Tags': 'weather-shield'
+            }
+            
+            req_module.post(
+                f'https://ntfy.sh/{ntfy_topic}',
+                data=message.encode(encoding='utf-8'),
+                headers=headers,
+                timeout=5
+            )
+            self.logger.debug(f"Sent ntfy notification: {title}")
+        except Exception as e:
+            self.logger.warning(f"Failed to send ntfy notification: {e}")
 
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from JSON file."""
@@ -230,6 +254,11 @@ class WeatherMonitor:
                 continue
             
             self.logger.info(f"Shutting down {comp['name']} due to bad weather...")
+            self._send_ntfy_notification(
+                "🌦️ Bad Weather Alert",
+                f"{comp['name']} is being shut down due to bad weather conditions.",
+                priority="high"
+            )
             try:
                 system = sys.platform
                 if system == "win32":
@@ -264,6 +293,11 @@ class WeatherMonitor:
                 continue
             
             self.logger.info(f"Weather conditions improved for {comp['name']}. Computer can boot.")
+            self._send_ntfy_notification(
+                "✅ Weather Improved",
+                f"Weather conditions improved for {comp['name']}. Ready to boot.",
+                priority="default"
+            )
             try:
                 system = sys.platform
                 if system == "win32":
@@ -651,6 +685,15 @@ class DashboardApp:
                         comp['action_time'] = datetime.now().isoformat()
                         
                         self.logger.info(f"Manual power control: {comp['name']} - turning {action}")
+                        
+                        # Send ntfy notification
+                        emoji = "⏻️" if action == 'on' else "⏼"
+                        title = f"{emoji} Power {'On' if action == 'on' else 'Off'}"
+                        self.monitor_ref._send_ntfy_notification(
+                            title,
+                            f"Manual control: {comp['name']} powered {action}",
+                            priority="default"
+                        )
                         
                         return self.jsonify({
                             'success': True,
