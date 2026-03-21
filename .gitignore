@@ -34,4 +34,6 @@ wheels/
 # Project specific
 config.json
 weather_monitor.log
+weather_shield.log
+.weather_shield.pid
 .env
