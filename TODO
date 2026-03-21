@@ -1,0 +1,7 @@
+- [x] Add ntfy notification for computer status changes in weather_shield.py
+- [x] Add ntfy notification for bad weather alerts in weather_shield.py
+- [ ] Create a docker-compose.yml file to run the application in a containerized environment
+- [ ] Create a linux package (deb/rpm) for easy installation and updates
+- [ ] Create a Nix package for easy installation and updates on NixOS
+- [ ] Create github actions workflow for CI/CD to automate testing and deployment
+- [ ] Create a github page for documentation and user guides

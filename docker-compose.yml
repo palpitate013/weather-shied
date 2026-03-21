@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  weather-shield:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: weather-shield
+    ports:
+      - "5000:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config.json:/app/config.json
+      - ./weather_shield.log:/app/weather_shield.log
+    restart: unless-stopped
+    networks:
+      - weather-shield-network
+
+networks:
+  weather-shield-network:
+    driver: bridge
