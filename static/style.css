@@ -461,6 +461,78 @@ html, body {
     font-size: 1rem;
 }
 
+/* System Control Information Card */
+.system-card {
+    grid-column: span 1;
+}
+
+.system-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.system-section {
+    border: 1px solid var(--bg4);
+    border-radius: 8px;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.system-section h3 {
+    color: var(--aqua);
+    font-size: 0.95rem;
+    margin-bottom: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.system-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.system-details .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.system-details .detail-value.copyable {
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.system-details .detail-value.copyable:hover {
+    background: var(--bg4);
+    color: var(--aqua);
+}
+
+.system-details .detail-value.mono {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.8rem;
+}
+
+.wol-info {
+    margin-top: 0.8rem;
+    padding: 0.8rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    border-left: 3px solid var(--yellow);
+    background: rgba(250, 189, 47, 0.1);
+}
+
+.wol-info.success {
+    border-left-color: var(--green);
+    background: rgba(184, 187, 38, 0.1);
+}
+
 /* Footer */
 .footer {
     background: var(--bg2);

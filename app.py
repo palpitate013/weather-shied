@@ -153,7 +153,7 @@ class WeatherShieldDashboard:
                 last_line = lines[-1]
                 try:
                     status['last_check'] = last_line.split(' - ')[0]
-                except:
+                except Exception:
                     status['last_check'] = 'unknown'
             
             return status
@@ -248,7 +248,7 @@ class WeatherShieldDashboard:
                                     'device': iface,
                                     'supported': True
                                 }
-                except:
+                except Exception:
                     continue
             
             return {
@@ -285,13 +285,13 @@ class WeatherShieldDashboard:
             
             if result.returncode == 0:
                 lines = result.stdout.split('\n')
-                for i, line in enumerate(lines):
+                for line in lines:
                     if 'link/ether' in line:
                         mac = line.split('link/ether')[1].strip().split()[0]
                         return mac
             
             return 'unknown'
-        except:
+        except Exception:
             return 'unknown'
     
     def _get_architecture(self):
@@ -305,7 +305,7 @@ class WeatherShieldDashboard:
             )
             if result.returncode == 0:
                 return result.stdout.strip()
-        except:
+        except Exception:
             pass
         return 'unknown'
 
