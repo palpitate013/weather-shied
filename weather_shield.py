@@ -56,18 +56,22 @@ class WeatherMonitor:
 
     def __init__(self, config_path: str = 'config.json'):
         """Initialize the weather monitor."""
+        self.logger = logging.getLogger('weather-shield.monitor')
+        self.config_path = config_path
+        
         self.config = self._load_config(config_path)
         self.api_key = self.config.get('api_key')
         self.latitude = self.config.get('latitude')
         self.longitude = self.config.get('longitude')
         self.check_interval = self.config.get('check_interval', 300)  # 5 minutes default
         self.forecast_minutes = self.config.get('forecast_minutes', 30)
-        self.is_computer_on = False
+        
+        # Multi-computer support: Track status for each computer
+        self.computers = {}
+        self._initialize_computers()
+        
         self.is_bad_weather = False
-        self.last_action = None
         self.running = True
-        self.logger = logging.getLogger('weather-shield.monitor')
-        self.config_path = config_path
 
         # Check if we have all required config
         if not self.api_key or not self.latitude or not self.longitude:
@@ -75,6 +79,21 @@ class WeatherMonitor:
             self.disabled = True
         else:
             self.disabled = False
+
+    def _initialize_computers(self):
+        """Initialize computer status tracking from config."""
+        computers_config = self.config.get('computers', [])
+        
+        for comp in computers_config:
+            comp_id = comp.get('id', f'computer-{len(self.computers) + 1}')
+            self.computers[comp_id] = {
+                'name': comp.get('name', f'Computer {len(self.computers) + 1}'),
+                'enabled': comp.get('enabled', True),
+                'is_on': False,
+                'last_action': None,
+                'action_time': None
+            }
+            self.logger.info(f"Initialized computer: {self.computers[comp_id]['name']} ({comp_id})")
 
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from JSON file."""
@@ -194,10 +213,23 @@ class WeatherMonitor:
 
         return should_boot
 
-    def shutdown_computer(self):
-        """Send shutdown signal to the computer."""
-        if self.is_computer_on:
-            self.logger.info("Shutting down computer due to bad weather...")
+    def shutdown_computer(self, computer_id: str = None):
+        """Send shutdown signal to the computer(s)."""
+        from datetime import datetime
+        
+        # If no specific computer, shutdown all enabled ones
+        target_computers = [computer_id] if computer_id else list(self.computers.keys())
+        
+        for comp_id in target_computers:
+            if comp_id not in self.computers:
+                self.logger.warning(f"Computer {comp_id} not found")
+                continue
+            
+            comp = self.computers[comp_id]
+            if not comp['enabled'] or not comp['is_on']:
+                continue
+            
+            self.logger.info(f"Shutting down {comp['name']} due to bad weather...")
             try:
                 system = sys.platform
                 if system == "win32":
@@ -206,32 +238,46 @@ class WeatherMonitor:
                     subprocess.run(["sudo", "shutdown", "-h", "+1"], check=True)
                 elif system == "darwin":
                     subprocess.run(
-                        ["osascript", "-e", "tell application \"System Events\" to "
-                         "shut down"],
+                        ["osascript", "-e", "tell application \"System Events\" to shut down"],
                         check=True
                     )
-                self.is_computer_on = False
-                self.last_action = "shutdown"
+                comp['is_on'] = False
+                comp['last_action'] = "shutdown"
+                comp['action_time'] = datetime.now().isoformat()
             except subprocess.CalledProcessError as e:
-                self.logger.error(f"Failed to shutdown: {e}")
+                self.logger.error(f"Failed to shutdown {comp['name']}: {e}")
 
-    def boot_computer(self):
-        """Send boot signal to wake the computer."""
-        if not self.is_computer_on:
-            self.logger.info("Weather conditions improved. Computer can boot.")
+    def boot_computer(self, computer_id: str = None):
+        """Send boot signal to wake the computer(s)."""
+        from datetime import datetime
+        
+        # If no specific computer, boot all enabled ones
+        target_computers = [computer_id] if computer_id else list(self.computers.keys())
+        
+        for comp_id in target_computers:
+            if comp_id not in self.computers:
+                self.logger.warning(f"Computer {comp_id} not found")
+                continue
+            
+            comp = self.computers[comp_id]
+            if not comp['enabled'] or comp['is_on']:
+                continue
+            
+            self.logger.info(f"Weather conditions improved for {comp['name']}. Computer can boot.")
             try:
                 system = sys.platform
                 if system == "win32":
-                    self.logger.info("Boot signal for Windows (requires Wake-on-LAN)")
+                    self.logger.info(f"Boot signal for {comp['name']} on Windows (requires Wake-on-LAN)")
                 elif system in ["linux", "linux2"]:
-                    self.logger.info("Boot signal for Linux (requires Wake-on-LAN from another machine)")
+                    self.logger.info(f"Boot signal for {comp['name']} on Linux (requires Wake-on-LAN from another machine)")
                 elif system == "darwin":
-                    self.logger.info("Boot signal for macOS (requires Wake-on-LAN)")
+                    self.logger.info(f"Boot signal for {comp['name']} on macOS (requires Wake-on-LAN)")
 
-                self.is_computer_on = True
-                self.last_action = "boot"
+                comp['is_on'] = True
+                comp['last_action'] = "boot"
+                comp['action_time'] = datetime.now().isoformat()
             except Exception as e:
-                self.logger.error(f"Failed to boot: {e}")
+                self.logger.error(f"Failed to boot {comp['name']}: {e}")
 
     def run(self):
         """Main monitoring loop."""
@@ -400,14 +446,18 @@ class DashboardApp:
                         'message': f'Error validating API key: {str(e)}'
                     }), 400
                 
-                # Save configuration
+                # Save configuration (preserve existing computers list)
+                with open(self.config_file, 'r') as f:
+                    existing_config = json.load(f)
+                
                 config = {
                     'api_key': data['api_key'],
                     'latitude': float(data['latitude']),
                     'longitude': float(data['longitude']),
                     'units': data['units'],
                     'check_interval': int(data['check_interval']),
-                    'forecast_minutes': int(data['forecast_minutes'])
+                    'forecast_minutes': int(data['forecast_minutes']),
+                    'computers': existing_config.get('computers', [])
                 }
                 
                 with open(self.config_file, 'w') as f:
@@ -427,7 +477,157 @@ class DashboardApp:
                     'message': f'Error saving settings: {str(e)}'
                 }), 500
 
-    def _get_weather_data(self) -> Dict:
+        @self.app.route('/api/computers', methods=['GET'])
+        def get_computers():
+            """Get list of all configured computers."""
+            try:
+                with open(self.config_file, 'r') as f:
+                    config = json.load(f)
+                computers = config.get('computers', [])
+                return self.jsonify({'computers': computers}), 200
+            except Exception as e:
+                self.logger.error(f"Error getting computers: {e}")
+                return self.jsonify({'error': str(e), 'computers': []}), 500
+
+        @self.app.route('/api/computers', methods=['POST'])
+        def add_computer():
+            """Add a new computer to monitor."""
+            try:
+                data = request.get_json()
+                
+                if not data.get('name'):
+                    return self.jsonify({
+                        'success': False,
+                        'message': 'Computer name is required'
+                    }), 400
+                
+                with open(self.config_file, 'r') as f:
+                    config = json.load(f)
+                
+                if 'computers' not in config:
+                    config['computers'] = []
+                
+                # Generate unique ID
+                existing_ids = {c.get('id') for c in config['computers']}
+                new_id = f"computer-{len(config['computers']) + 1}"
+                counter = 1
+                while new_id in existing_ids:
+                    counter += 1
+                    new_id = f"computer-{counter}"
+                
+                new_computer = {
+                    'id': new_id,
+                    'name': data['name'],
+                    'enabled': data.get('enabled', True)
+                }
+                
+                config['computers'].append(new_computer)
+                
+                with open(self.config_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+                
+                self.logger.info(f"Added computer: {new_computer['name']} ({new_id})")
+                
+                # Reinitialize computers in monitor
+                if hasattr(self, 'monitor_ref') and self.monitor_ref:
+                    self.monitor_ref._initialize_computers()
+                
+                return self.jsonify({
+                    'success': True,
+                    'message': 'Computer added successfully',
+                    'computer': new_computer
+                }), 201
+                
+            except Exception as e:
+                self.logger.error(f"Error adding computer: {e}")
+                return self.jsonify({
+                    'success': False,
+                    'message': f'Error adding computer: {str(e)}'
+                }), 500
+
+        @self.app.route('/api/computers/<computer_id>', methods=['PUT'])
+        def update_computer(computer_id):
+            """Update a computer's configuration."""
+            try:
+                data = request.get_json()
+                
+                with open(self.config_file, 'r') as f:
+                    config = json.load(f)
+                
+                computers = config.get('computers', [])
+                computer = next((c for c in computers if c.get('id') == computer_id), None)
+                
+                if not computer:
+                    return self.jsonify({
+                        'success': False,
+                        'message': 'Computer not found'
+                    }), 404
+                
+                if 'name' in data:
+                    computer['name'] = data['name']
+                if 'enabled' in data:
+                    computer['enabled'] = data['enabled']
+                
+                with open(self.config_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+                
+                self.logger.info(f"Updated computer: {computer['name']} ({computer_id})")
+                
+                # Reinitialize computers in monitor
+                if hasattr(self, 'monitor_ref') and self.monitor_ref:
+                    self.monitor_ref._initialize_computers()
+                
+                return self.jsonify({
+                    'success': True,
+                    'message': 'Computer updated successfully',
+                    'computer': computer
+                }), 200
+                
+            except Exception as e:
+                self.logger.error(f"Error updating computer: {e}")
+                return self.jsonify({
+                    'success': False,
+                    'message': f'Error updating computer: {str(e)}'
+                }), 500
+
+        @self.app.route('/api/computers/<computer_id>', methods=['DELETE'])
+        def delete_computer(computer_id):
+            """Delete a computer from monitoring."""
+            try:
+                with open(self.config_file, 'r') as f:
+                    config = json.load(f)
+                
+                computers = config.get('computers', [])
+                original_count = len(computers)
+                
+                config['computers'] = [c for c in computers if c.get('id') != computer_id]
+                
+                if len(config['computers']) == original_count:
+                    return self.jsonify({
+                        'success': False,
+                        'message': 'Computer not found'
+                    }), 404
+                
+                with open(self.config_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+                
+                self.logger.info(f"Deleted computer: {computer_id}")
+                
+                # Reinitialize computers in monitor
+                if hasattr(self, 'monitor_ref') and self.monitor_ref:
+                    self.monitor_ref._initialize_computers()
+                
+                return self.jsonify({
+                    'success': True,
+                    'message': 'Computer deleted successfully'
+                }), 200
+                
+            except Exception as e:
+                self.logger.error(f"Error deleting computer: {e}")
+                return self.jsonify({
+                    'success': False,
+                    'message': f'Error deleting computer: {str(e)}'
+                }), 500
         """Fetch current weather data."""
         try:
             # Load config fresh to get latest settings
@@ -511,7 +711,7 @@ class DashboardApp:
             return {'error': str(e), 'forecasts': []}
 
     def _get_device_status(self) -> Dict:
-        """Get device monitoring status."""
+        """Get device monitoring status for all computers."""
         try:
             with open('weather_shield.log', 'r') as f:
                 lines = f.readlines()
@@ -519,10 +719,24 @@ class DashboardApp:
         except FileNotFoundError:
             last_check = 'Never'
 
+        # Get computer statuses from the monitor if available
+        computers = []
+        if hasattr(self, 'monitor_ref') and self.monitor_ref:
+            for comp_id, comp_data in self.monitor_ref.computers.items():
+                computers.append({
+                    'id': comp_id,
+                    'name': comp_data['name'],
+                    'enabled': comp_data['enabled'],
+                    'is_on': comp_data['is_on'],
+                    'last_action': comp_data['last_action'],
+                    'action_time': comp_data.get('action_time')
+                })
+        
         return {
             'status': 'running',
             'last_check': last_check,
-            'is_monitoring': True
+            'is_monitoring': True,
+            'computers': computers
         }
 
     def run(self, host: str = 'localhost', port: int = 5000, debug: bool = False):
@@ -573,6 +787,8 @@ class WeatherShield:
 
             # Initialize dashboard
             self.dashboard = DashboardApp('config.json')
+            # Pass monitor reference to dashboard for accessing computer status
+            self.dashboard.monitor_ref = self.monitor
             self.dashboard_thread = threading.Thread(
                 target=self.dashboard.run,
                 args=('0.0.0.0', dashboard_port),

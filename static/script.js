@@ -57,6 +57,7 @@ class WeatherShieldDashboard {
         this.updateDeviceStatus();
         this.updateConfig();
         this.updateTime();
+        loadComputers();
     }
 
     updateTime() {
@@ -362,11 +363,243 @@ function clearSettingsMessage() {
     messageEl.className = 'settings-message';
 }
 
+// Computer Management Functions
+function openComputerModal() {
+    const modal = document.getElementById('computerModal');
+    modal.classList.add('active');
+    document.getElementById('computerForm').reset();
+    clearComputerMessage();
+}
+
+function closeComputerModal() {
+    const modal = document.getElementById('computerModal');
+    modal.classList.remove('active');
+    clearComputerMessage();
+}
+
+function handleComputerFormSubmit(event) {
+    event.preventDefault();
+    
+    const computerData = {
+        name: document.getElementById('computerName').value,
+        enabled: document.getElementById('computerEnabled').checked
+    };
+
+    if (!computerData.name.trim()) {
+        showComputerMessage('Computer name is required', 'error');
+        return;
+    }
+
+    showComputerMessage('Adding computer...', 'success');
+    
+    fetch('/api/computers', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(computerData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showComputerMessage('Computer added successfully!', 'success');
+            setTimeout(() => {
+                closeComputerModal();
+                loadComputers();
+            }, 1000);
+        } else {
+            showComputerMessage(data.message || 'Error adding computer', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding computer:', error);
+        showComputerMessage('Error adding computer: ' + error.message, 'error');
+    });
+}
+
+function loadComputers() {
+    fetch('/api/computers')
+        .then(response => response.json())
+        .then(data => {
+            renderComputers(data.computers || []);
+        })
+        .catch(error => {
+            console.error('Error loading computers:', error);
+            renderComputers([]);
+        });
+}
+
+function renderComputers(computers) {
+    const container = document.getElementById('computersContent');
+    
+    if (!computers || computers.length === 0) {
+        container.innerHTML = '<div class="empty-message">No computers configured. Click "Add" to add one.</div>';
+        return;
+    }
+
+    // Also fetch current device status to get real-time computer states
+    fetch('/api/device-status')
+        .then(response => response.json())
+        .then(status => {
+            const computerStates = {};
+            if (status.computers) {
+                status.computers.forEach(comp => {
+                    computerStates[comp.id] = comp;
+                });
+            }
+
+            let html = '';
+            computers.forEach(comp => {
+                const state = computerStates[comp.id] || {};
+                const isOn = state.is_on || false;
+                const isEnabled = comp.enabled !== false;
+                const statusClass = !isEnabled ? 'disabled' : (isOn ? 'on' : 'off');
+                const statusText = !isEnabled ? 'Disabled' : (isOn ? 'Online' : 'Offline');
+                const statusEmoji = !isEnabled ? '⊘' : (isOn ? '🟢' : '🔴');
+
+                html += `
+                    <div class="computer-item">
+                        <div class="computer-info">
+                            <div class="computer-status ${statusClass}">
+                                <div class="status-indicator-small ${statusClass}"></div>
+                                ${statusEmoji} ${statusText}
+                            </div>
+                            <div class="computer-details">
+                                <div class="computer-name">${escapeHtml(comp.name)}</div>
+                                <div class="computer-meta">
+                                    ${state.last_action ? `Last action: ${state.last_action}` : 'No actions yet'}
+                                    ${state.action_time ? ` (${new Date(state.action_time).toLocaleTimeString()})` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="computer-actions">
+                            <button class="btn-icon" onclick="editComputer('${comp.id}', '${escapeHtml(comp.name)}', ${comp.enabled})" title="Edit">✏️</button>
+                            <button class="btn-icon danger" onclick="deleteComputer('${comp.id}', '${escapeHtml(comp.name)}')" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error fetching device status:', error);
+            // Render computers without live state
+            let html = '';
+            computers.forEach(comp => {
+                html += `
+                    <div class="computer-item">
+                        <div class="computer-info">
+                            <div class="computer-status disabled">
+                                <div class="status-indicator-small disabled"></div>
+                                ? Unknown
+                            </div>
+                            <div class="computer-details">
+                                <div class="computer-name">${escapeHtml(comp.name)}</div>
+                            </div>
+                        </div>
+                        <div class="computer-actions">
+                            <button class="btn-icon" onclick="editComputer('${comp.id}', '${escapeHtml(comp.name)}', ${comp.enabled})" title="Edit">✏️</button>
+                            <button class="btn-icon danger" onclick="deleteComputer('${comp.id}', '${escapeHtml(comp.name)}')" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        });
+}
+
+function editComputer(computerId, computerName, isEnabled) {
+    const newName = prompt('Edit computer name:', computerName);
+    if (newName === null) return;
+    
+    if (!newName.trim()) {
+        alert('Computer name cannot be empty');
+        return;
+    }
+
+    fetch(`/api/computers/${computerId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            name: newName,
+            enabled: isEnabled
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadComputers();
+        } else {
+            alert('Error updating computer: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating computer:', error);
+        alert('Error updating computer');
+    });
+}
+
+function deleteComputer(computerId, computerName) {
+    if (!confirm(`Delete "${computerName}"? This cannot be undone.`)) {
+        return;
+    }
+
+    fetch(`/api/computers/${computerId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadComputers();
+        } else {
+            alert('Error deleting computer: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting computer:', error);
+        alert('Error deleting computer');
+    });
+}
+
+function showComputerMessage(message, type) {
+    const messageEl = document.getElementById('computerMessage');
+    messageEl.textContent = message;
+    messageEl.className = 'settings-message ' + type;
+}
+
+function clearComputerMessage() {
+    const messageEl = document.getElementById('computerMessage');
+    messageEl.textContent = '';
+    messageEl.className = 'settings-message';
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 // Close modal when clicking outside of it
 window.addEventListener('click', (event) => {
     const modal = document.getElementById('settingsModal');
     if (event.target === modal) {
         closeSettings();
+    }
+});
+
+// Close computer modal when clicking outside
+window.addEventListener('click', (event) => {
+    const modal = document.getElementById('computerModal');
+    if (event.target === modal) {
+        closeComputerModal();
     }
 });
 
@@ -376,9 +609,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsForm) {
         settingsForm.addEventListener('submit', handleSettingsSubmit);
     }
+
+    const computerForm = document.getElementById('computerForm');
+    if (computerForm) {
+        computerForm.addEventListener('submit', handleComputerFormSubmit);
+    }
 });
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new WeatherShieldDashboard();
+    loadComputers();
 });
