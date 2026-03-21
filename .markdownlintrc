@@ -1,0 +1,13 @@
+{
+  "default": true,
+  "line-length": 120,
+  "ul-indent": false,
+  "no-hard-tabs": true,
+  "no-trailing-spaces": true,
+  "no-multiple-blanks": true,
+  "no-bare-urls": false,
+  "ol-prefix": false,
+  "md041": false,
+  "md026": false,
+  "md007": false
+}

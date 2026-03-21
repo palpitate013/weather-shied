@@ -1,0 +1,62 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  markdown-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Markdown Linting
+      uses: nosborn/github-action-markdown-cli@v3.3.0
+      with:
+        files: .
+        config_file: .markdownlintrc
+
+  build-docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install documentation tools
+      run: |
+        npm install -g markdownlint-cli
+
+    - name: Build documentation
+      run: |
+        mkdir -p docs/_build
+        cp README.md docs/index.md
+        cp INSTALL.md docs/installation.md
+        cp DOCKER.md docs/docker.md
+        cp NIX.md docs/nixos.md
+
+    - name: Deploy documentation to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.event_name == 'push'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        user_name: 'github-actions[bot]'
+        user_email: 'github-actions[bot]@users.noreply.github.com'
+        commit_message: 'docs: Update documentation'
+        cname: weather-shield.example.com
