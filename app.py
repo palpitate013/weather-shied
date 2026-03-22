@@ -4,15 +4,16 @@ Weather Shield Web Dashboard
 A Flask-based web interface for Weather Shield monitoring.
 """
 
-from flask import Flask, render_template, jsonify
-from flask_cors import CORS
 import json
 import os
 import socket
 import subprocess
 from datetime import datetime
-import requests
 from pathlib import Path
+
+import requests
+from flask import Flask, jsonify, render_template
+from flask_cors import CORS
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)

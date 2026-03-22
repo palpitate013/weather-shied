@@ -5,18 +5,19 @@ Combined weather monitoring daemon and web dashboard.
 Runs both weather_monitor and Flask app in separate threads.
 """
 
-import os
-import sys
-import time
-import subprocess
-import logging
-import threading
 import json
+import logging
+import os
 import signal
-import requests as req_module
+import subprocess
+import sys
+import threading
+import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, cast
 from pathlib import Path
+from typing import Any, Dict, List, Optional, cast
+
+import requests as req_module
 
 # Configure logging
 logging.basicConfig(
@@ -452,7 +453,7 @@ class DashboardApp:
     def __init__(self, config_path: str = "config.json"):
         """Initialize the dashboard."""
         try:
-            from flask import Flask, render_template, jsonify
+            from flask import Flask, jsonify, render_template
             from flask_cors import CORS
         except ImportError as e:
             raise ImportError(f"Flask not installed: {e}")
@@ -477,7 +478,7 @@ class DashboardApp:
 
     def _setup_routes(self):
         """Setup Flask routes."""
-        from flask import send_from_directory, render_template, request
+        from flask import render_template, request, send_from_directory
 
         @self.app.route("/")
         def index():
