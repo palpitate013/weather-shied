@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy application files
 COPY weather_shield.py .
-COPY config.json .
+COPY config.example.json config.json
 COPY templates/ templates/
 COPY static/ static/
 COPY requirements.txt .
