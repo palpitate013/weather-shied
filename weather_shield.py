@@ -68,7 +68,7 @@ class WeatherMonitor:
         self.forecast_minutes = self.config.get('forecast_minutes', 30)
         
         # Multi-computer support: Track status for each computer
-        self.computers = {}
+        self.computers: Dict[str, Dict] = {}
         self._initialize_computers()
         
         self.is_bad_weather = False
@@ -237,7 +237,7 @@ class WeatherMonitor:
 
         return should_boot
 
-    def shutdown_computer(self, computer_id: str = None):
+    def shutdown_computer(self, computer_id: Optional[str] = None):
         """Send shutdown signal to the computer(s)."""
         from datetime import datetime
         
@@ -276,7 +276,7 @@ class WeatherMonitor:
             except subprocess.CalledProcessError as e:
                 self.logger.error(f"Failed to shutdown {comp['name']}: {e}")
 
-    def boot_computer(self, computer_id: str = None):
+    def boot_computer(self, computer_id: Optional[str] = None):
         """Send boot signal to wake the computer(s)."""
         from datetime import datetime
         
